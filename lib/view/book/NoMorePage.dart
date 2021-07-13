@@ -23,20 +23,17 @@ class _NoMorePageState extends State<NoMorePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Visibility(
+      body: Offstage(
           child: Container(
             width: Screen.width,
             height: Screen.height,
             decoration: BoxDecoration(
                 image: DecorationImage(
                     image:
-                        CachedNetworkImageProvider('${_everyPoet.share ?? ''}'),
+                        CachedNetworkImageProvider('${_everyPoet?.share ?? ''}'),
                     fit: BoxFit.fitWidth)),
           ),
-          replacement: Center(
-            child: Text('等待作者更新'),
-          ),
-          visible: _everyPoet != null),
+          offstage: _everyPoet == null),
     );
 
     // return Ad();

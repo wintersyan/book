@@ -1,18 +1,19 @@
 import 'dart:convert';
 
 import 'package:book/common/DbHelper.dart';
-import 'package:book/common/PicWidget.dart';
 import 'package:book/common/Screen.dart';
+import 'package:book/common/common.dart';
 import 'package:book/entity/Book.dart';
 import 'package:book/event/event.dart';
-import 'package:book/model/ColorModel.dart';
 import 'package:book/model/ShelfModel.dart';
 import 'package:book/route/Routes.dart';
 import 'package:book/store/Store.dart';
 import 'package:book/widgets/ConfirmDialog.dart';
+import 'package:book/widgets/has_update_icon_img.dart';
 import 'package:flustars/flustars.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:keframe/frame_separate_widget.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 
 class BooksWidget extends StatefulWidget {
@@ -29,24 +30,36 @@ class _BooksWidgetState extends State<BooksWidget> {
   RefreshController _refreshController;
   ShelfModel _shelfModel;
   bool isShelf;
+  final double coverWidth = 76.0;
+
+  final double aspectRatio = 0.65;
+  double bookPicWidth = SpUtil.getDouble(Common.book_pic_width, defValue: .0);
+  final double coverHeight = 122.58;
+  int spacingLen = 20;
+  int axisLen = 4;
 
   @override
   void initState() {
+    if (bookPicWidth == .0) {
+      SpUtil.putDouble(Common.book_pic_width, Screen.width / 4);
+    }
     isShelf = this.widget.type == '';
-    _refreshController =
-        RefreshController(initialRefresh: SpUtil.haveKey('auth') && isShelf);
     _shelfModel = Store.value<ShelfModel>(context);
-    eventBus
-        .on<SyncShelfEvent>()
-        .listen((SyncShelfEvent booksEvent) => freshShelf());
+    _refreshController = RefreshController();
+    eventBus.on<UpdateBookProcess>().listen((event) {
+      _shelfModel.updReadBookProcess(event);
+      DbHelper.instance.updBookProcess(
+          event.cur, event.index, 0.0, _shelfModel.shelf.first.Id);
+    });
     super.initState();
     var widgetsBinding = WidgetsBinding.instance;
     widgetsBinding.addPostFrameCallback((callback) {
       _shelfModel.context = context;
-      _shelfModel.setShelf();
       if (isShelf) {
         _shelfModel.freshToken();
       }
+      if (SpUtil.haveKey('auth') && isShelf)
+        _refreshController.requestRefresh();
     });
   }
 
@@ -73,7 +86,7 @@ class _BooksWidgetState extends State<BooksWidget> {
         ),
         controller: _refreshController,
         onRefresh: freshShelf,
-        child: _shelfModel.model ? coverModel() : listModel());
+        child: _shelfModel.cover ? coverModel() : listModel());
   }
 
   //刷新书架
@@ -90,134 +103,99 @@ class _BooksWidgetState extends State<BooksWidget> {
 
   //书架封面模式
   Widget coverModel() {
-    return GridView(
-      shrinkWrap: true,
-      padding: EdgeInsets.symmetric(horizontal: 22, vertical: 5),
-      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 90,
-          // mainAxisSpacing: 10.0,
-          crossAxisSpacing: 20.0,
-          childAspectRatio: 0.42),
-      children: cover(),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Wrap(
+        alignment: WrapAlignment.spaceEvenly,
+        spacing: 4, //主轴上子控件的间距
+        runSpacing: 15, //交叉轴上子控件之间的间距
+        children: cover(), //要显示的子控件集合
+      ),
     );
   }
 
+  Widget bookAction(Widget widget, int i) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () async {
+        this.widget.type == "sort"
+            ? _shelfModel.changePick(i)
+            : await readBook(i);
+      },
+      child: widget,
+      onLongPress: () {
+        Routes.navigateTo(
+          context,
+          Routes.sortShelf,
+        );
+      },
+    );
+  }
+
+  /**
+   * 封面子项
+   */
   List<Widget> cover() {
     List<Widget> wds = [];
     List<Book> books = _shelfModel.shelf;
     Book book;
-    for (var i = 0; i < books.length; i++) {
+    for (int i = 0; i < books.length; i++) {
       book = books[i];
-      wds.add(GestureDetector(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            Stack(
-              alignment: AlignmentDirectional.topCenter,
-              children: <Widget>[
-                Column(
-                  children: [
-                    PicWidget(
-                      book.Img,
-                      // width: 100,
-                      // height: ((ScreenUtil.getScreenW(context) - 100) / 3) * 1.3,
-                    ),
-                    SizedBox(
-                      height: 5,
-                    ),
-                    Center(
-                      child: Text(
-                        book.Name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    )
-                  ],
+      wds.add(Container(
+        width: coverWidth,
+        child: bookAction(
+            Column(
+              children: [
+                HasUpdateIconImg(coverWidth, coverHeight, this.widget.type, i),
+                SizedBox(
+                  height: 5,
                 ),
-                book.NewChapterCount == 1
-                    ? Align(
-                        alignment: Alignment.topRight,
-                        child: Image.asset(
-                          'images/h6.png',
-                          width: 30,
-                          height: 30,
-                        ),
-                      )
-                    : Container(),
-                this.widget.type == "sort"
-                    ? GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        child: Container(
-                          width: (ScreenUtil.getScreenW(context) - 80) / 3,
-                          height:
-                              ((ScreenUtil.getScreenW(context) - 80) / 3) * 1.2,
-                          child: Align(
-                            alignment: Alignment.topRight,
-                            child: Image.asset(
-                              'images/pick.png',
-                              color: !_shelfModel.picks(i)
-                                  ? Colors.white
-                                  : Store.value<ColorModel>(context)
-                                      .theme
-                                      .primaryColor,
-                              width: 30,
-                              height: 30,
-                            ),
-                          ),
-                        ),
-                        onTap: () {
-                          _shelfModel.changePick(i);
-                        },
-                      )
-                    : Container()
+                Center(
+                  child: Text(
+                    book.Name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                )
               ],
             ),
-            // Text(
-            //   book.Name,
-            //   maxLines: 1,
-            //   overflow: TextOverflow.ellipsis,
-            // )
-          ],
-        ),
-        onTap: () async {
-          await goRead(_shelfModel.shelf[i], i);
-        },
-        onLongPress: () {
-          Routes.navigateTo(
-            context,
-            Routes.sortShelf,
-          );
-        },
+            i),
       ));
     }
+    int len = 0;
 
+    len = (Screen.width - 20) ~/ coverWidth;
+    if (((Screen.width - 20) % coverWidth) < (len - 1) * 5) {
+      len -= 1;
+    }
+    SpUtil.putInt("lenx", len);
+    // }
+    //不满4的倍数填充container
+    int z = wds.length < len ? len - wds.length : len - wds.length % len;
+    if (z != 0) {
+      for (var i = 0; i < z; i++) {
+        wds.add(Container(
+          width: coverWidth,
+        ));
+      }
+    }
     return wds;
   }
 
   //书架列表模式
   Widget listModel() {
     return ListView.builder(
-        itemExtent: (25 + (Screen.width / 4) * 1.2),
-        itemCount: _shelfModel.shelf.length,
-        itemBuilder: (context, i) {
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () async {
-              await goRead(_shelfModel.shelf[i], i);
-            },
-            child: getBookItemView(_shelfModel.shelf[i], i),
-            onLongPress: () {
-              Routes.navigateTo(
-                context,
-                Routes.sortShelf,
-              );
-            },
-          );
-        });
+      cacheExtent: 500,
+      itemCount: _shelfModel.shelf.length,
+      itemBuilder: (c, i) => FrameSeparateWidget(
+        index: i,
+        child: bookAction(getBookItemView(i), i),
+      ),
+    );
   }
 
-  Future goRead(Book book, int i) async {
-    Book b = await DbHelper.instance.getBook(book.Id);
+  Future readBook(int i) async {
+    var b = _shelfModel.shelf[i];
     Routes.navigateTo(
       context,
       Routes.read,
@@ -225,175 +203,119 @@ class _BooksWidgetState extends State<BooksWidget> {
         'read': jsonEncode(b),
       },
     );
-    _shelfModel.upToTop(b, i);
+    _shelfModel.sort(i);
   }
 
-  getBookItemView(Book item, int i) {
-    return Container(
-      child: Dismissible(
-        key: Key(item.Id.toString()),
-        child: Stack(
-          children: [
-            Container(
-              child: Row(
-                children: <Widget>[
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: <Widget>[
-                      Container(
-                        padding: const EdgeInsets.only(left: 15.0, top: 10.0),
-                        child: Stack(
-                          children: <Widget>[
-                            PicWidget(
-                              item.Img,
-                              height: (Screen.width / 4) * 1.2,
-                              width: Screen.width / 4,
-                            ),
-                            item.NewChapterCount == 1
-                                ? Container(
-                                    height: (Screen.width / 4) * 1.2,
-                                    width: Screen.width / 4,
-                                    child: Align(
-                                      alignment: Alignment.topRight,
-                                      child: Image.asset(
-                                        'images/h6.png',
-                                        width: 30,
-                                        height: 30,
-                                      ),
-                                    ),
-                                  )
-                                : Container(),
-                          ],
-                        ),
-                      )
-                    ],
-                  ),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Container(
-                        width: ScreenUtil.getScreenW(context) - 120,
-                        padding: const EdgeInsets.only(left: 10.0, right: 10),
-                        child: Text(
-                          item.Name,
-                          style: TextStyle(
-                              fontSize: 18.0, fontWeight: FontWeight.bold),
-                        ),
+  /**
+   * 列表子项
+   */
+  getBookItemView(int i) {
+    Book item = _shelfModel.shelf[i];
+    return Dismissible(
+      key: Key(item.Id.toString()),
+      child: Container(
+        height: bookPicWidth / aspectRatio,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Row(
+          children: <Widget>[
+            HasUpdateIconImg(
+                bookPicWidth, bookPicWidth / aspectRatio, this.widget.type, i),
+            //expanded 回占据剩余空间 text maxLine=1 就不会超过屏幕了
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      item.Name,
+                      style: TextStyle(
+                          fontSize: 18.0, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                    ),
+                    Text(
+                      item.Author,
+                      style: TextStyle(
+                        fontSize: 12.0,
                       ),
-                      Container(
-                        width: ScreenUtil.getScreenW(context) - 120,
-                        padding: const EdgeInsets.only(left: 10.0, right: 10),
-                        child: Text(
-                          item.Author,
-                          style: TextStyle(
-                            fontSize: 12.0,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.only(left: 10.0, right: 10),
-                        child: Text(
-                          item.LastChapter,
-                          style: TextStyle(fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 2,
-                        ),
-                        width: ScreenUtil.getScreenW(context) - 120,
-                      ),
-                      Container(
-                        padding: const EdgeInsets.only(left: 10.0, right: 10),
-                        child: Text(item?.UTime ?? '',
-                            style: TextStyle(color: Colors.grey, fontSize: 11)),
-                      ),
-                    ],
-                  ),
-                ],
+                      maxLines: 1,
+                    ),
+                    Text(
+                      item.LastChapter,
+                      style: TextStyle(fontSize: 12),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                    Text(
+                      item?.UTime ?? '',
+                      style: TextStyle(color: Colors.grey, fontSize: 11),
+                      maxLines: 1,
+                    ),
+                  ],
+                ),
               ),
             ),
-            Align(
-                alignment: Alignment.topRight,
-                child: this.widget.type == "sort"
-                    ? GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        child: Container(
-                          margin: EdgeInsets.only(right: 20),
-                          height: 115,
-                          width: ScreenUtil.getScreenW(context),
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: Image.asset(
-                              'images/pick.png',
-                              color: !_shelfModel.picks(i)
-                                  ? Colors.black38
-                                  : Store.value<ColorModel>(context)
-                                      .theme
-                                      .primaryColor,
-                              width: 30,
-                              height: 30,
-                            ),
-                          ),
-                        ),
-                        onTap: () {
-                          _shelfModel.changePick(i);
-                        },
-                      )
-                    : Container())
           ],
         ),
-        onDismissed: (direction) {
-          _shelfModel.modifyShelf(item);
-        },
-        background: Container(
-          color: Colors.green,
-          // 这里使用 ListTile 因为可以快速设置左右两端的Icon
-          child: ListTile(
-            leading: Icon(
-              Icons.bookmark,
-              color: Colors.white,
-            ),
-          ),
-        ),
-        secondaryBackground: Container(
-          color: Colors.red,
-          // 这里使用 ListTile 因为可以快速设置左右两端的Icon
-          child: ListTile(
-            trailing: Icon(
-              Icons.delete,
-              color: Colors.white,
-            ),
-          ),
-        ),
-        confirmDismiss: (direction) async {
-          var _confirmContent;
-
-          var _alertDialog;
-
-          if (direction == DismissDirection.endToStart) {
-            // 从右向左  也就是删除
-            _confirmContent = '确认删除     ${item.Name}';
-            _alertDialog = ConfirmDialog(
-              _confirmContent,
-              () {
-                // 展示 SnackBar
-                Navigator.of(context).pop(true);
-              },
-              () {
-                Navigator.of(context).pop(false);
-              },
-            );
-          } else {
-            return false;
-          }
-          var isDismiss = await showDialog(
-              context: context,
-              builder: (context) {
-                return _alertDialog;
-              });
-          return isDismiss;
-        },
       ),
-      padding: EdgeInsets.only(bottom: 5),
+      onDismissed: (direction) {
+        _shelfModel.modifyShelf(item);
+      },
+      background: Container(
+        color: Colors.green,
+        // 这里使用 ListTile 因为可以快速设置左右两端的Icon
+        child: ListTile(
+          leading: Icon(
+            Icons.bookmark,
+            color: Colors.white,
+          ),
+        ),
+      ),
+      secondaryBackground: Container(
+        color: Colors.red,
+        // 这里使用 ListTile 因为可以快速设置左右两端的Icon
+        child: ListTile(
+          trailing: Icon(
+            Icons.delete,
+            color: Colors.white,
+          ),
+        ),
+      ),
+      confirmDismiss: (direction) async {
+        var _confirmContent;
+
+        var _alertDialog;
+
+        if (direction == DismissDirection.endToStart) {
+          // 从右向左  也就是删除
+          _confirmContent = '确认删除     ${item.Name}';
+          _alertDialog = ConfirmDialog(
+            _confirmContent,
+            () {
+              // 展示 SnackBar
+              Navigator.of(context).pop(true);
+            },
+            () {
+              Navigator.of(context).pop(false);
+            },
+          );
+        } else {
+          return false;
+        }
+        var isDismiss = await showDialog(
+            context: context,
+            builder: (context) {
+              return _alertDialog;
+            });
+        return isDismiss;
+      },
     );
+  }
+
+  @override
+  void dispose() {
+    _refreshController?.dispose();
+    super.dispose();
   }
 }

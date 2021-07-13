@@ -2,14 +2,27 @@ import 'package:book/common/Screen.dart';
 import 'package:flustars/flustars.dart';
 
 class ReadSetting {
+  static List<String> bgImg = [
+    "QR_bg_1.jpg",
+    "QR_bg_2.jpg",
+    "QR_bg_3.jpg",
+    "QR_bg_5.jpg",
+    "QR_bg_7.png",
+    "QR_bg_8.png",
+    "QR_bg_4.jpg",
+  ];
+  static String bgsKey = "BGSKEY";
   static String fontSizeKey = "FONT_SIZE";
   static String latterHeight = "LINE_HEIGHT";
   static String latterLead = "LATTER_LEAD";
   static String latterSpace = "LATTER_SPACE";
-  static double listPageChapterName=200;
-  static double listPageBottom=Screen.height/2;
-  static String temp_w="temp_w";
-  static String temp_h="temp_h";
+  static String paragraph = "paragraph";
+  static String pageDis = "pageDis";
+
+  static double listPageChapterName = 200;
+  static double listPageBottom = Screen.height / 2;
+  static String temp_w = "temp_w";
+  static String temp_h = "temp_h";
 
   static String poet = '世人为荣利缠缚，动曰尘世苦海，不知云白山青，川行石立，花迎鸟笑，谷答樵讴，世亦不尘、海亦不苦、彼自尘苦其心尔';
   static String lawWarn =
@@ -36,15 +49,51 @@ class ReadSetting {
   }
 
   static double getLineHeight() {
-    return SpUtil.getDouble(latterHeight, defValue: 1.5);
+    return SpUtil.getDouble(latterHeight, defValue: 1.8);
   }
 
   static void setLineHeight(double lineHeight) {
     SpUtil.putDouble(latterHeight, lineHeight);
   }
 
+  static void addLineHeight() {
+    SpUtil.putDouble(latterHeight, getLineHeight() + .1);
+  }
+
+  static void subLineHeight() {
+    SpUtil.putDouble(latterHeight, getLineHeight() - .1);
+  }
+
+  static void addLatterSpace() {
+    SpUtil.putDouble(latterSpace, getLatterSpace() + 1);
+  }
+
+  static void subLatterSpace() {
+    SpUtil.putDouble(latterSpace, getLatterSpace() - 1);
+  }
+
   static double getLatterSpace() {
-    return SpUtil.getDouble(latterSpace, defValue: 1.0);
+    return SpUtil.getDouble(latterSpace, defValue: 3.0);
+  }
+
+  static void setLatterSpace(double v) {
+    SpUtil.putDouble(latterSpace, v);
+  }
+
+  static void addParagraph() {
+    SpUtil.putDouble(paragraph, getParagraph() + .1);
+  }
+
+  static void subParagraph() {
+    SpUtil.putDouble(paragraph, getParagraph() - .1);
+  }
+
+  static double getParagraph() {
+    return SpUtil.getDouble(paragraph, defValue: .8);
+  }
+
+  static void setParagraph(double v) {
+    SpUtil.putDouble(paragraph, v);
   }
 
   static double getLatterLead() {
@@ -58,15 +107,31 @@ class ReadSetting {
   static void calcFontSize(double size) {
     setFontSize(getFontSize() + size);
   }
+
+  static void setPageDis(int s) {
+    SpUtil.putInt(pageDis, s);
+  }
+
+  static int getPageDis() {
+    return SpUtil.getInt(pageDis, defValue: 20);
+  }
+
+  static void calcPageDis(int s) {
+    SpUtil.putInt(pageDis, getPageDis() + s);
+  }
+
   static double getTempH() {
     return SpUtil.getDouble(temp_h, defValue: 0);
   }
+
   static void setTempH(double h) {
-     SpUtil.putDouble(temp_h, h);
+    SpUtil.putDouble(temp_h, h);
   }
+
   static double getTempW() {
     return SpUtil.getDouble(temp_w, defValue: 0);
   }
+
   static void setTempW(double w) {
     SpUtil.putDouble(temp_w, w);
   }

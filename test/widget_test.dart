@@ -5,12 +5,18 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
-void main() {
-  List<int> a = [1, 2, 3, 4, 5];
-  int cursor = 1;
-  a.removeAt(cursor);
-  a.insert(cursor, 6);
-  print(a);
+
+
+Future<void> main() async {
+var s='1.修复一些bug\n2.新增主题色选配';
+
+var split = s.split("\\n");
+print(split.length);
+
+  // List msg1 = await parseJson(msg);
+
+  // List<ParseContentConfig> configs =
+  //     msg1.map((e) => ParseContentConfig.fromJson(e)).toList();
 
 //  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
 //    // Build our app and trigger a frame.

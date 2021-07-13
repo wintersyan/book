@@ -3,8 +3,10 @@ import 'dart:typed_data';
 
 import 'package:book/common/LoadDialog.dart';
 import 'package:book/model/ColorModel.dart';
+import 'package:book/model/ReadModel.dart';
 import 'package:book/service/CustomCacheManager.dart';
 import 'package:book/store/Store.dart';
+import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
@@ -31,14 +33,12 @@ class StateFontSet extends State<FontSet> {
 
   @override
   Widget build(BuildContext context) {
+    var readModel = Store.value<ReadModel>(context);
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
         title: Text(
           "字体",
-          style: TextStyle(
-            color: _colorModel.dark ? Colors.white : Colors.black,
-          ),
+          style: TextStyle(),
         ),
         elevation: 0,
         centerTitle: true,
@@ -51,7 +51,6 @@ class StateFontSet extends State<FontSet> {
                 "\t\t\t\t\t\t\t\t\t\t\t\t\t\t问刘十九\r\n绿蚁新醅酒，红泥小火炉。\r\n晚来天欲雪，能饮一杯无？",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontFamily: _colorModel.font,
                 ),
               ),
             ),
@@ -104,17 +103,18 @@ class StateFontSet extends State<FontSet> {
                                                 return LoadingDialog();
                                               },
                                             );
-                                            FileInfo fileInfo =
-                                                await CustomCacheManager
-                                                    .instanceFont
-                                                    .downloadFile(e.value,
-                                                        key: e.key);
-                                            print(fileInfo.file.path);
+
+                                            await CustomCacheManager
+                                                .instanceFont
+                                                .downloadFile(e.value,
+                                                    key: e.key);
+
                                             Navigator.pop(context);
                                           } else {
                                             if (e.key == "Roboto") {
                                               _colorModel
                                                   .setFontFamily("Roboto");
+                                              readModel.updPage();
                                             } else {
                                               File file =
                                                   await CustomCacheManager
@@ -131,6 +131,8 @@ class StateFontSet extends State<FontSet> {
                                                       readAsBytes.buffer)));
                                               await fontLoader.load();
                                               _colorModel.setFontFamily(e.key);
+                                               readModel.updPage();
+                                              //  Theme.of(context).textTheme.
                                             }
                                           }
                                           if (mounted) {

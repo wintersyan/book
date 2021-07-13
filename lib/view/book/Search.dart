@@ -4,15 +4,16 @@ import 'package:book/common/Http.dart';
 import 'package:book/common/PicWidget.dart';
 import 'package:book/common/common.dart';
 import 'package:book/entity/BookInfo.dart';
-import 'package:book/entity/GBook.dart';
 import 'package:book/model/ColorModel.dart';
 import 'package:book/model/SearchModel.dart';
 import 'package:book/route/Routes.dart';
 import 'package:book/store/Store.dart';
+import 'package:book/widgets/SearchAiItem.dart';
 import 'package:dio/dio.dart';
 import 'package:flustars/flustars.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:keframe/frame_separate_widget.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 
 class Search extends StatefulWidget {
@@ -32,7 +33,18 @@ class _SearchState extends State<Search> {
   SearchModel searchModel;
   ColorModel value;
   Widget body;
+  GlobalKey textFieldKey;
   TextEditingController controller = TextEditingController();
+  OverlayEntry searchSuggest;
+  OverlayState overlayState;
+  double aiItemH = 40;
+  double height;
+
+  double width;
+
+  double xPosition;
+
+  double yPosition;
 
   @override
   Widget build(BuildContext context) {
@@ -55,15 +67,25 @@ class _SearchState extends State<Search> {
   void dispose() {
     super.dispose();
     searchModel.clear();
+    controller?.dispose();
+  }
+
+  @override
+  void deactivate() {
+    super.deactivate();
+    removeOverlay();
   }
 
   @override
   void initState() {
+    overlayState = Overlay.of(context);
+    textFieldKey = GlobalKey();
     super.initState();
     isBookSearch = this.widget.type == "book";
     if (this.widget.type == "book" && this.widget.name != "") {
       controller.text = this.widget.name;
     }
+
     var widgetsBinding = WidgetsBinding.instance;
     widgetsBinding.addPostFrameCallback((callback) {
       initModel();
@@ -74,11 +96,13 @@ class _SearchState extends State<Search> {
     searchModel = Store.value<SearchModel>(context);
     searchModel.showResult = false;
     searchModel.context = context;
+    searchModel.textFieldKey = textFieldKey;
     searchModel.controller = controller;
     searchModel.isBookSearch = this.isBookSearch;
     searchModel.store_word =
         isBookSearch ? Common.book_search_history : Common.movie_search_history;
     searchModel.initHistory();
+    findOverLayPosition();
     if (isBookSearch) {
       await searchModel.initBookHot();
     } else {
@@ -89,154 +113,140 @@ class _SearchState extends State<Search> {
 
   Widget buildSearchWidget() {
     return Container(
-      decoration: BoxDecoration(
-        color: Color(0xFFF2F2F2),
-        // borderRadius: BorderRadius.circular(25),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 40,
-            height: 40,
-            child: Icon(
-              Icons.search,
-              size: 22,
-              color: Color(0xFF999999),
-            ),
-          ),
-          Expanded(
-              child: Container(
-            child: TextField(
-              controller: controller,
-              onSubmitted: (word) {
-                searchModel.search(word);
-              },
-              style: TextStyle(
-                fontSize: 15,
-                color: Color(0xFF333333),
-                height: 1.3,
-              ),
-              autofocus: false,
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                isDense: true,
-                hintStyle: TextStyle(
-                  fontSize: 15,
-                  color: Color(0xFF999999),
-                ),
-                suffixIcon: IconButton(
-                  icon: Icon(Icons.close),
-                  onPressed: () {
-                    controller.text = "";
-                    searchModel.reset();
-                  },
-                ),
-                hintText: isBookSearch ? "书籍/作者名" : "美剧/作者",
-              ),
-            ),
-            height: 40,
-          )),
+      child: TextField(
+        key: textFieldKey,
+        controller: controller,
+        onSubmitted: (word) {
+          removeOverlay();
+          searchModel.search(word);
+        },
+        onChanged: (value) async {
+          if (value.isNotEmpty) {
+            await searchModel.searchAi(value);
+            if (searchModel.bksAi.isNotEmpty) {
+              if (searchSuggest != null) removeOverlay();
 
-          // _suffix(),
-        ],
+              searchSuggest = _buildSearchSuggest();
+
+              overlayState.insert(searchSuggest);
+            } else {
+              removeOverlay();
+            }
+          } else {
+            if (searchSuggest != null) removeOverlay();
+          }
+          setState(() {});
+        },
+        style: TextStyle(
+          fontSize: 15,
+          height: 1.3,
+        ),
+        autofocus: false,
+        decoration: InputDecoration(
+            border: InputBorder.none,
+            isDense: true,
+            hintStyle: TextStyle(
+              fontSize: 15,
+            ),
+            prefixIcon: Icon(
+              Icons.search,
+            ),
+            suffixIcon: IconButton(
+              icon: Icon(Icons.close),
+              onPressed: () {
+                controller.text = "";
+                searchModel.reset();
+                removeOverlay();
+              },
+            ),
+            hintText: "书籍/作者名"),
       ),
+      height: 40,
     );
   }
 
-  Widget resultWidget() {
-    return SmartRefresher(
-      enablePullDown: true,
-      enablePullUp: true,
-      header: WaterDropHeader(),
-      footer: CustomFooter(
-        builder: (BuildContext context, LoadStatus mode) {
-          if (mode == LoadStatus.idle) {
-          } else if (mode == LoadStatus.loading) {
-            body = CupertinoActivityIndicator();
-          } else if (mode == LoadStatus.failed) {
-            body = Text("加载失败！点击重试！");
-          } else if (mode == LoadStatus.canLoading) {
-            body = Text("松手,加载更多!");
-          } else {
-            body = Text("到底了!");
-          }
-          return Center(
-            child: body,
-          );
-        },
-      ),
-      controller: searchModel.refreshController,
-      onRefresh: searchModel.onRefresh,
-      onLoading: searchModel.onLoading,
-      child: isBookSearch
-          ? ListView.builder(
-            itemExtent: 130,
-              itemBuilder: (context, i) {
-                var auth = searchModel.bks[i].Author;
-//                var cate = searchModel.bks[i].CName??"";
-                return GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  child: Row(
-                    children: <Widget>[
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: <Widget>[
-                          Container(
-                            padding:
-                                const EdgeInsets.only(left: 10.0, top: 10.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(5),
-                              child: PicWidget(
-                                searchModel.bks[i]?.Img ?? "",
-                                height: 115,
-                                width: 90,
-                              ),
-                            ),
-                          )
-                        ],
-                      ),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.max,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        verticalDirection: VerticalDirection.down,
-                        // textDirection:,
-                        textBaseline: TextBaseline.alphabetic,
+  void removeOverlay() {
+    searchSuggest?.remove();
+    searchSuggest = null;
+  }
 
-                        children: <Widget>[
-                          Container(
-                            width: ScreenUtil.getScreenW(context) - 120,
-                            padding:
-                                const EdgeInsets.only(left: 10.0, top: 10.0),
-                            child: Text(
-                              searchModel.bks[i].Name,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 15),
-                            ),
-                          ),
-                          Container(
-                            padding:
-                                const EdgeInsets.only(left: 10.0, top: 10.0),
-                            child: new Text('$auth',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                )),
-                          ),
-                          Container(
-                            padding:
-                                const EdgeInsets.only(left: 10.0, top: 10.0),
-                            child: Text(searchModel.bks[i].Desc ?? "",
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 2,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                )),
-                            width: ScreenUtil.getScreenW(context) - 120,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+  void findOverLayPosition() {
+    RenderBox renderBox = textFieldKey.currentContext.findRenderObject();
+    height = renderBox.size.height;
+    width = renderBox.size.width;
+
+    Offset offset = renderBox.localToGlobal(Offset.zero);
+    xPosition = offset.dx;
+
+    yPosition = offset.dy;
+  }
+
+  // 生成搜索建议
+  OverlayEntry _buildSearchSuggest() {
+    return OverlayEntry(builder: (context) {
+      return Positioned(
+        left: xPosition,
+        width: width,
+        top: yPosition + height + 5,
+        height: 500,
+        child: SearchAiItem(
+            height: aiItemH,
+            function: (id) async {
+              searchModel.setHistory(controller.value.text);
+
+              String url = Common.detail + '/$id';
+              Response future =
+                  await HttpUtil(showLoading: true).http().get(url);
+              var d = future.data['data'];
+              BookInfo b = BookInfo.fromJson(d);
+              Routes.navigateTo(
+                context,
+                Routes.detail,
+                params: {
+                  'detail': jsonEncode(b),
+                },
+              );
+              removeOverlay();
+            }),
+      );
+    });
+  }
+
+  Widget resultWidget() {
+    var picW = SpUtil.getDouble(Common.book_pic_width, defValue: .0);
+    var picH = picW / .65;
+    return SmartRefresher(
+        enablePullDown: true,
+        enablePullUp: true,
+        header: WaterDropHeader(),
+        footer: CustomFooter(
+          builder: (BuildContext context, LoadStatus mode) {
+            if (mode == LoadStatus.idle) {
+            } else if (mode == LoadStatus.loading) {
+              body = CupertinoActivityIndicator();
+            } else if (mode == LoadStatus.failed) {
+              body = Text("加载失败！点击重试！");
+            } else if (mode == LoadStatus.canLoading) {
+              body = Text("松手,加载更多!");
+            } else {
+              body = Text("到底了!");
+            }
+            return Center(
+              child: body,
+            );
+          },
+        ),
+        controller: searchModel.refreshController,
+        onRefresh: searchModel.onRefresh,
+        onLoading: searchModel.onLoading,
+        child: ListView.builder(
+          itemExtent: picH,
+          itemBuilder: (c, i) {
+            var item = searchModel.bks[i];
+            return FrameSeparateWidget(
+                index: i,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: () async {
                     String url = Common.detail + '/${searchModel.bks[i].Id}';
                     Response future =
@@ -246,45 +256,64 @@ class _SearchState extends State<Search> {
                     Routes.navigateTo(context, Routes.detail,
                         params: {"detail": jsonEncode(b)});
                   },
-                );
-              },
-              itemCount: searchModel.bks.length,
-            )
-          : GridView(
-              shrinkWrap: true,
-              padding: EdgeInsets.all(5.0),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 1.0,
-                  crossAxisSpacing: 10.0,
-                  childAspectRatio: 0.7),
-              children: searchModel.mks.map((i) => img(i)).toList(),
-            ),
-    );
-  }
+                  child: Container(
+                    height: 130,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 10),
+                    child: Row(
+                      children: <Widget>[
+                        PicWidget(
+                          item.Img,
+                          width: picW,
+                          height: picH,
+                        ),
 
-  Widget img(GBook gbk) {
-    return GestureDetector(
-      child: Column(
-        children: <Widget>[
-          PicWidget(
-            gbk.cover,
-            width: (ScreenUtil.getScreenW(context) - 40) / 3,
-            height: ((ScreenUtil.getScreenW(context) - 40) / 3) * 1.2,
-          ),
-          Spacer(),
-          Text(
-            gbk.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          )
-        ],
-      ),
-      onTap: () async {
-        Routes.navigateTo(context, Routes.vDetail,
-            params: {"gbook": jsonEncode(gbk)});
-      },
-    );
+                        //expanded 回占据剩余空间 text maxLine=1 就不会超过屏幕了
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  item.Name,
+                                  style: TextStyle(
+                                      fontSize: 18.0,
+                                      fontWeight: FontWeight.bold),
+                                  maxLines: 1,
+                                ),
+                                Text(
+                                  item.Author,
+                                  style: TextStyle(
+                                    fontSize: 12.0,
+                                  ),
+                                  maxLines: 1,
+                                ),
+                                Text(
+                                  item.Desc ?? "尚无介绍.....",
+                                  style: TextStyle(
+                                    fontSize: 12.0,
+                                  ),
+                                  maxLines: 2,
+                                ),
+                                Text(
+                                  item.LastChapter,
+                                  style: TextStyle(fontSize: 12),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ));
+          },
+          itemCount: searchModel.bks.length,
+        ));
   }
 
   Widget suggestionWidget(data) {
@@ -313,14 +342,12 @@ class _SearchState extends State<Search> {
                 )
               ],
             ),
-//          ListView(
-//            shrinkWrap: true,
-//            children: data.getHistory(),
-//          ),
-            Wrap(
-              children: searchModel?.getHistory() ?? [],
-              spacing: 10, //主轴上子控件的间距
-              alignment: WrapAlignment.start, //交叉轴上子控件之间的间距
+            Offstage(
+              offstage: searchModel?.getHistory()?.isNotEmpty,
+              child: Wrap(
+                children: searchModel.getHistory(),
+                spacing: 10, //主轴上子控件的间距
+              ),
             ),
             Row(
               children: <Widget>[
@@ -346,5 +373,10 @@ class _SearchState extends State<Search> {
         ),
       ),
     );
+  }
+
+  @override
+  void didUpdateWidget(covariant Search oldWidget) {
+    super.didUpdateWidget(oldWidget);
   }
 }

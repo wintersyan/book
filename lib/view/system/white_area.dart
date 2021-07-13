@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 
 class WhiteArea extends StatelessWidget {
   final Widget _widget;
-final double height;
-  WhiteArea(this._widget,this.height);
+  final double height;
+  WhiteArea(this._widget, this.height);
 
   @override
   Widget build(BuildContext context) {
@@ -13,7 +13,7 @@ final double height;
         builder: (context, ColorModel model, child) {
       return Container(
         decoration: BoxDecoration(
-          color: Color(model.dark ? 0x4D000000 : 0xFBFFFFFF),
+          color: Color(model.dark ? 0x4D000000 : 0xABFFFFFF),
           borderRadius: BorderRadius.all(Radius.circular(10.0)),
         ),
         margin: EdgeInsets.symmetric(vertical: 50),

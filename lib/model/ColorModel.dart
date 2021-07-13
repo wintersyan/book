@@ -3,18 +3,24 @@ import 'dart:typed_data';
 import 'package:book/common/common.dart';
 import 'package:book/event/event.dart';
 import 'package:book/service/CustomCacheManager.dart';
+import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flustars/flustars.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:flutter_statusbar_manager/flutter_statusbar_manager.dart';
 
 class ColorModel with ChangeNotifier {
   BuildContext buildContext;
   bool dark = false;
-  List<Color> skins = Colors.accents;
+
+  List<Color> skins = FlexScheme.values
+      .map((e) => FlexColorScheme.light(
+            scheme: e,
+          ).toTheme.primaryColor)
+      .toList();
+  // List<FlexScheme> skins = FlexThemeModeSwitch(themeMode: themeMode, onThemeModeChanged: onThemeModeChanged, flexSchemeData: flexSchemeData)
   String savePath = "";
   Map fonts = {
     "Roboto": "默认字体",
@@ -26,6 +32,7 @@ class ColorModel with ChangeNotifier {
     "方正卡通": "http://oss-asq-download.11222.cn/font/package/FZKATK.TTF",
   };
   int idx = SpUtil.getInt('skin', defValue: 5);
+
   ThemeData _theme;
   String font = SpUtil.getString("fontName", defValue: "Roboto");
 
@@ -36,35 +43,38 @@ class ColorModel with ChangeNotifier {
     if (SpUtil.haveKey("dark")) {
       dark = SpUtil.getBool("dark");
     }
+    var scheme = FlexScheme.values[idx];
     _theme = dark
-        ? ThemeData(brightness: Brightness.dark, fontFamily: font)
-        : ThemeData(primaryColor: skins[idx], fontFamily: font);
+        ? FlexColorScheme.dark(
+            scheme: scheme,
+            fontFamily: font,
+          ).toTheme
+        : FlexColorScheme.light(
+            scheme: scheme,
+            fontFamily: font,
+          ).toTheme;
     return _theme;
   }
 
-  getSkins(w, h) {
+  getSkins() {
     List<Widget> wds = [];
     for (var i = 0; i < skins.length; i++) {
       wds.add(GestureDetector(
-        child: Container(
-          width: w,
-          height: h,
-          child: Stack(
-            children: <Widget>[
-              Container(
-                color: skins[i],
-              ),
-              i == idx
-                  ? Align(
-                      alignment: Alignment.topRight,
-                      child: ImageIcon(
-                        AssetImage('images/pick.png'),
-                        color: Colors.white,
-                      ),
-                    )
-                  : Container()
-            ],
-          ),
+        child: Stack(
+          children: <Widget>[
+            Container(
+              color: skins[i],
+            ),
+            i == idx
+                ? Align(
+                    alignment: Alignment.topRight,
+                    child: ImageIcon(
+                      AssetImage('images/pick.png'),
+                      color: Colors.white,
+                    ),
+                  )
+                : Container()
+          ],
         ),
         onTap: () {
           idx = i;
@@ -78,28 +88,15 @@ class ColorModel with ChangeNotifier {
 
   switchModel() {
     dark = !dark;
+
     SpUtil.putBool("dark", dark);
-    if (dark) {
-      FlutterStatusbarManager.setStyle(StatusBarStyle.DARK_CONTENT);
-    } else {
-      FlutterStatusbarManager.setStyle(StatusBarStyle.LIGHT_CONTENT);
-    }
+
     notifyListeners();
   }
 
   setFontFamily(name) {
     font = name;
     SpUtil.putString("fontName", font);
-
-    var keys = SpUtil.getKeys();
-
-    for (var f in keys) {
-      if (f.contains('pages') || f.startsWith(Common.page_height_pre)) {
-        SpUtil.remove(f);
-      }
-    }
-
-    eventBus.fire(ReadRefresh(""));
     notifyListeners();
   }
 

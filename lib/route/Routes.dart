@@ -25,6 +25,7 @@ class Routes {
   static String voices = '/voices';
   static String voiceList = '/voiceList';
   static String videoTest = '/videoTest';
+  static String update = '/update';
 
 
   // 配置route
@@ -32,6 +33,7 @@ class Routes {
     // 未发现对应route
 
     router.define(root, handler: rootHandler);
+    router.define(update, handler: updateHandler);
     router.define(search, handler: searchHandler);
     router.define(read, handler: readHandler);
     router.define(login, handler: loginHandler);
@@ -47,7 +49,8 @@ class Routes {
   // 对参数进行encode，解决参数中有特殊字符，影响fluro路由匹配
   static Future navigateTo(BuildContext context, String path,
       {Map<String, dynamic> params,
-      TransitionType transition = TransitionType.native,bool replace = false,}) {
+      TransitionType transition = TransitionType.fadeIn,bool replace = false,}) {
+
     String query = "";
 
     if (params != null) {

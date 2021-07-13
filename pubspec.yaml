@@ -17,20 +17,29 @@ environment:
   sdk: ">=2.10.0 <3.0.0"
 
 dependencies:
-
+  # firebase_auth: ^2.0.0
+  # google_sign_in: ^5.0.4
+  # google_sign_in_web: ^0.10.0
+  keframe: ^2.0.1
+  flex_color_scheme: ^2.1.1
+  # indexed_list_view: ^2.0.0
+  # flutter_isolate: ^2.0.0
+  package_info: ^2.0.2
+  image_picker: ^0.8.0+1
+  jpush_flutter: ^2.1.2
   html: ^0.15.0
-  firebase_analytics: ^7.1.1
-  firebase_core: ^1.0.2
-  extended_tabs: ^2.0.0
+  # firebase_analytics: ^7.1.1
+  # firebase_core: ^1.0.2
+ 
   palette_generator: ^0.3.0
   install_plugin: ^2.0.1
-  flutter_cache_manager: ^2.1.2
-  permission_handler: ^6.1.0
+  permission_handler: ^8.0.1
   battery: ^2.0.1
   fluro: ^2.0.3
   screen: ^0.0.5
-  shared_preferences: ^2.0.4
-  cached_network_image: ^2.5.1
+  protobuf: ^2.0.0
+  shared_preferences: ^2.0.6
+  cached_network_image: ^3.0.0
   path_provider: ^2.0.1
   dio: ^4.0.0
   convert: ^3.0.0
@@ -38,10 +47,10 @@ dependencies:
   event_bus: ^2.0.0
   flustars: ^2.0.1
   flutter_statusbar_manager: 
-      git:
-        url: https://github.com/Gentleflow/flutter_statusbar_manager.git
+    git:
+      url: https://github.com/Gentleflow/flutter_statusbar_manager.git
   bot_toast: ^4.0.1
-  pull_to_refresh: ^1.6.5
+  pull_to_refresh: ^2.0.0
   provider: ^5.0.0
   url_launcher: ^6.0.2
   get_it: ^6.0.0

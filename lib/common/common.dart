@@ -12,15 +12,18 @@ class Common {
   static String info = domain + '/info';
   static String modifypassword = domain + "/password";
   static String register = domain + "/register";
+  static String update = domain + "/update";
   static String hot = domain + '/hot';
   static String detail = domain + "/book/detail";
   static String shelf = domain + "/book/shelf";
   static String rank = domain + "/book/rank";
+  static String config = domain + "/book/config";
 
 //  static String search = video_domain + "/book/search";
   static String two = domain + "/book/two";
 
   static String search = domain + "/book/search";
+  static String searchAi = domain + "/book/searchAi";
   static String bookInfo = domain + "/book/info/";
   static String chaptersUrl = domain + "/book/chapters";
   static String bookContentUrl = domain + '/book/chapter';
@@ -33,6 +36,8 @@ class Common {
   static String listbookname = "booklist";
   static String toplist = "toplist";
   static String downloadlist = "downloadlist";
+  static String bgIdx = "bgIdx";
+  static String turnPageAnima = "turnPageAnima";
 
 //  static String video_domain = "http://192.168.3.56:8082";
 
@@ -54,4 +59,6 @@ class Common {
   static String movie_search_history = "movie_search_history";
   static String notice_info = "notice_info";
   static String reading_style = "READINGSTYLE";
+  static String parse_html_config = "parse_html_config";
+  static String book_pic_width = "book_pic_width";
 }

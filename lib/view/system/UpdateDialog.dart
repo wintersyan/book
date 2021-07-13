@@ -1,17 +1,17 @@
 import 'dart:io';
 
 import 'package:book/common/Http.dart';
+import 'package:book/entity/Update.dart';
+import 'package:book/event/event.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:install_plugin/install_plugin.dart';
 import 'package:path_provider/path_provider.dart';
 
 class UpdateDialog extends StatefulWidget {
-  final String version;
-  final String feature;
-  final String url;
+  final Update update;
 
-  UpdateDialog(this.feature, this.version, this.url);
+  UpdateDialog(this.update);
 
   @override
   State<StatefulWidget> createState() => UpdateDialogState();
@@ -23,36 +23,31 @@ class UpdateDialogState extends State<UpdateDialog> {
 
   @override
   Widget build(BuildContext context) {
-    var _textStyle = TextStyle(color: Theme.of(context).textTheme.body1.color);
-
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       title: Text(
         "更新",
-        style: _textStyle,
       ),
       content: progress == 0.0
-          ? Text(
-              "${widget.version}",
-              style: _textStyle,
-            )
+          ? Text('''${this.widget.update.msg}''')
           : LinearProgressIndicator(
               value: progress,
+              semanticsLabel: "$progress %",
+              semanticsValue: "$progress %",
             ),
       actions: <Widget>[
-        FlatButton(
+        TextButton(
           child: Text(
             '更新',
-            style: _textStyle,
           ),
           onPressed: () {
             installApk();
           },
         ),
-        FlatButton(
+        TextButton(
           child: Text('取消'),
           onPressed: () {
-            Navigator.of(context).pop();
+            eventBus.fire(new CleanEvent(1));
           },
         ),
       ],
@@ -63,7 +58,7 @@ class UpdateDialogState extends State<UpdateDialog> {
     Dio dio = HttpUtil().http();
     Directory storageDir = await getExternalStorageDirectory();
     String storagePath = storageDir.path;
-    File file = new File('$storagePath/apk/deerbook.apk');
+    File file = new File('$storagePath/deerbook.apk');
 
     if (file.existsSync()) {
       file.delete();
@@ -73,7 +68,7 @@ class UpdateDialogState extends State<UpdateDialog> {
 
     try {
       /// 发起下载请求
-      Response response = await dio.get(widget.url,
+      Response response = await dio.get(widget.update.link,
           onReceiveProgress: (receivedBytes, totalBytes) {
         setState(() {
           downloading = true;
@@ -108,10 +103,7 @@ class UpdateDialogState extends State<UpdateDialog> {
       return;
     }
 
-    InstallPlugin.installApk(_apkFilePath, "com.leetomlee.book").then((result) {
-      print('install apk $result');
-    }).catchError((error) {
-      print('install apk error: $error');
-    });
+    String msg =
+        await InstallPlugin.installApk(_apkFilePath, "com.leetomlee.book");
   }
 }
